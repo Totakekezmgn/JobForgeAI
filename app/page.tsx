@@ -9,25 +9,70 @@ type Company = {
   status: string;
   deadline: string;
   nextAction: string;
+  memo?: string;
 };
+
+// 企業管理ページ(/companies)と同じステータス一覧。順序は選考の進行順
+const STATUSES = ["検討中", "IS応募予定", "ES作成中", "ES提出済み", "一次面接", "二次面接", "最終面接", "内定", "見送り"];
 
 export default function Home() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [esCount, setEsCount] = useState(0);
+  const [logCount, setLogCount] = useState(0);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("jobforge-companies");
-    if (saved) {
-      setCompanies(JSON.parse(saved));
-    }
+    if (saved) setCompanies(JSON.parse(saved));
+
+    const es = window.localStorage.getItem("jobforge-es-documents");
+    setEsCount(es ? JSON.parse(es).length : 0);
+
+    const logs = window.localStorage.getItem("jobforge-interview-logs");
+    setLogCount(logs ? JSON.parse(logs).length : 0);
   }, []);
 
-  const today = new Date();
-  const urgent = companies.filter((c) => {
-    if (!c.deadline) return false;
-    const d = new Date(c.deadline);
-    const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff >= 0 && diff <= 7;
+  // ダッシュボード上で選考状況を直接変更できるようにする(企業管理と同じ保存先)
+  function updateStatus(id: string, status: string) {
+    const next = companies.map((c) => (c.id === id ? { ...c, status } : c));
+    setCompanies(next);
+    window.localStorage.setItem("jobforge-companies", JSON.stringify(next));
+  }
+
+  function daysLeft(deadline: string): number | null {
+    if (!deadline) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(deadline);
+    return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function deadlineBadge(deadline: string) {
+    const days = daysLeft(deadline);
+    if (days === null) return null;
+    if (days < 0) return <span className="status-pill status-danger">期限切れ {Math.abs(days)}日</span>;
+    if (days === 0) return <span className="status-pill status-danger">今日締切</span>;
+    if (days <= 3) return <span className="status-pill status-danger">あと{days}日</span>;
+    if (days <= 7) return <span className="status-pill status-warning">あと{days}日</span>;
+    return <span className="status-pill status-good">あと{days}日</span>;
+  }
+
+  // 選考中(内定・見送り以外)の企業だけを締切順に並べる
+  const active = companies.filter((c) => c.status !== "内定" && c.status !== "見送り");
+  const withDeadline = [...active]
+    .filter((c) => c.deadline)
+    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const urgent = withDeadline.filter((c) => {
+    const d = daysLeft(c.deadline);
+    return d !== null && d >= 0 && d <= 7;
   });
+  const overdue = withDeadline.filter((c) => {
+    const d = daysLeft(c.deadline);
+    return d !== null && d < 0;
+  });
+
+  // ステータス別の件数(0件のものは表示しない)
+  const statusCounts = STATUSES.map((s) => ({ status: s, count: companies.filter((c) => c.status === s).length }))
+    .filter((s) => s.count > 0);
 
   return (
     <main className="container">
@@ -38,57 +83,66 @@ export default function Home() {
 
       <section className="dashboard-grid">
         <div className="card">
-          <h2>管理企業</h2>
-          <div className="price">{companies.length}</div>
-          <p className="muted">応募・検討中の企業</p>
+          <h2>選考中</h2>
+          <div className="price">{active.length}<span className="muted" style={{ fontSize: 16 }}> / {companies.length}社</span></div>
+          <p className="muted">内定 {companies.filter((c) => c.status === "内定").length} / 見送り {companies.filter((c) => c.status === "見送り").length}</p>
           <Link className="button" href="/companies">企業を管理</Link>
         </div>
 
         <div className="card">
           <h2>直近締切</h2>
           <div className="price">{urgent.length}</div>
-          <p className="muted">7日以内の締切</p>
+          <p className="muted">7日以内の締切{overdue.length > 0 ? `(期限切れ ${overdue.length}件)` : ""}</p>
           <Link className="button" href="/calendar">予定を見る</Link>
         </div>
 
         <div className="card">
-          <h2>次の対策</h2>
-          <div className="price">AI</div>
-          <p className="muted">面接・企業研究・Code対策</p>
+          <h2>対策の蓄積</h2>
+          <div className="price">{esCount + logCount}</div>
+          <p className="muted">ES {esCount}件 / 面接ログ {logCount}件</p>
           <Link className="button" href="/interview">面接練習</Link>
         </div>
       </section>
 
+      {statusCounts.length > 0 && (
+        <section className="card" style={{ marginTop: 18 }}>
+          <h2>選考ステータス</h2>
+          <p>
+            {statusCounts.map((s) => (
+              <span className="badge" key={s.status}>{s.status} {s.count}</span>
+            ))}
+          </p>
+        </section>
+      )}
+
       <section className="grid" style={{ marginTop: 18 }}>
         <div className="card">
-          <h2>今日やるべきこと</h2>
-          {urgent.length === 0 && <p className="muted">直近7日以内の締切はありません。企業管理から予定を追加してください。</p>}
-          {urgent.map((c) => (
+          <h2>締切タイムライン</h2>
+          {withDeadline.length === 0 && <p className="muted">締切が設定された企業はありません。企業管理から追加してください。</p>}
+          {withDeadline.slice(0, 8).map((c) => (
             <div className="timeline-item" key={c.id}>
-              <strong>{c.name}</strong>
-              <p className="muted">締切: {c.deadline}</p>
-              <p>{c.nextAction || "次の行動を設定してください。"}</p>
+              <strong>{c.name}</strong> {deadlineBadge(c.deadline)}
+              <p className="muted">{c.deadline} / {c.nextAction || "次の行動を設定してください"}</p>
+              <select
+                className="select"
+                style={{ maxWidth: 200, padding: 8 }}
+                value={c.status}
+                onChange={(e) => updateStatus(c.id, e.target.value)}
+              >
+                {STATUSES.map((s) => <option key={s}>{s}</option>)}
+              </select>
             </div>
           ))}
         </div>
 
         <div className="card">
           <h2>主要機能</h2>
-          <p><Link href="/companies">企業管理</Link></p>
-          <p><Link href="/import-company">企業追加AI</Link></p>
-          <p><Link href="/es">ES管理</Link></p>
-          <p><Link href="/calendar">締切・予定管理</Link></p>
-          <p><Link href="/tasks">タスク管理</Link></p>
-          <p><Link href="/calendar-export">カレンダー出力</Link></p>
-          <p><Link href="/research">AI企業研究</Link></p>
-          <p><Link href="/live-research">自動企業リサーチ</Link></p>
-          <p><Link href="/interview">AI面接シミュレーター</Link></p>
-          <p><Link href="/voice-interview">音声面接練習</Link></p>
-          <p><Link href="/interview-logs">面接ログ</Link></p>
-          <p><Link href="/company">企業別コーディングテスト対策</Link></p>
-          <p><Link href="/roadmap">Code学習ロードマップ</Link></p>
-          <p><Link href="/data">データ管理・バックアップ</Link></p>
-          <p><Link href="/cloud">クラウド同期</Link></p>
+          <p><Link href="/companies">企業管理</Link> / <Link href="/import-company">企業追加AI</Link></p>
+          <p><Link href="/es">ES管理</Link> / <Link href="/calendar">締切・予定管理</Link> / <Link href="/tasks">タスク管理</Link></p>
+          <p><Link href="/research">AI企業研究</Link> / <Link href="/live-research">自動リサーチ</Link></p>
+          <p><Link href="/interview">AI面接シミュレーター</Link> / <Link href="/voice-interview">音声面接練習</Link> / <Link href="/interview-logs">面接ログ</Link></p>
+          <p><Link href="/company">企業別Code対策</Link> / <Link href="/roadmap">Code学習ロードマップ</Link></p>
+          <p><Link href="/data">データ管理</Link> / <Link href="/cloud">クラウド同期</Link> / <Link href="/calendar-export">カレンダー出力</Link></p>
         </div>
       </section>
     </main>
