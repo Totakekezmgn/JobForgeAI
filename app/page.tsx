@@ -15,6 +15,10 @@ type Company = {
 // 企業管理ページ(/companies)と同じステータス一覧。順序は選考の進行順
 const STATUSES = ["検討中", "IS応募予定", "ES作成中", "ES提出済み", "一次面接", "二次面接", "最終面接", "内定", "見送り"];
 
+function statusControlId(id: string) {
+  return `company-status-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 export default function Home() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [esCount, setEsCount] = useState(0);
@@ -56,6 +60,20 @@ export default function Home() {
     return <span className="status-pill status-good">あと{days}日</span>;
   }
 
+  function deadlineWarningLabel(deadline: string) {
+    const days = daysLeft(deadline);
+    if (days === null) return "";
+    if (days < 0) return `期限切れ ${Math.abs(days)}日`;
+    if (days === 0) return "今日締切";
+    return `あと${days}日`;
+  }
+
+  function scrollToStatus(id: string) {
+    const target = document.getElementById(statusControlId(id));
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus();
+  }
+
   // 選考中(内定・見送り以外)の企業だけを締切順に並べる
   const active = companies.filter((c) => c.status !== "内定" && c.status !== "見送り");
   const withDeadline = [...active]
@@ -69,6 +87,11 @@ export default function Home() {
     const d = daysLeft(c.deadline);
     return d !== null && d < 0;
   });
+  const deadlineWarnings = withDeadline.filter((c) => {
+    const d = daysLeft(c.deadline);
+    return d !== null && d <= 3;
+  });
+  const visibleDeadlineCount = Math.max(8, deadlineWarnings.length);
 
   // ステータス別の件数(0件のものは表示しない)
   const statusCounts = STATUSES.map((s) => ({ status: s, count: companies.filter((c) => c.status === s).length }))
@@ -80,6 +103,20 @@ export default function Home() {
         <h1>JobForge AI</h1>
         <p>IT就活の企業管理、締切、面接、企業研究、コーディングテスト対策を一元管理するAI就活OS。</p>
       </section>
+
+      {deadlineWarnings.length > 0 && (
+        <section className="warning-box" aria-label="締切リマインダー">
+          <strong>締切リマインダー</strong>
+          <p>対応が必要な企業があります。ステータスを更新する場合は企業名を選んでください。</p>
+          <div className="warning-actions">
+            {deadlineWarnings.map((c) => (
+              <button className="button secondary" key={c.id} type="button" onClick={() => scrollToStatus(c.id)}>
+                {c.name} / {deadlineWarningLabel(c.deadline)}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="dashboard-grid">
         <div className="card">
@@ -119,11 +156,12 @@ export default function Home() {
         <div className="card">
           <h2>締切タイムライン</h2>
           {withDeadline.length === 0 && <p className="muted">締切が設定された企業はありません。企業管理から追加してください。</p>}
-          {withDeadline.slice(0, 8).map((c) => (
+          {withDeadline.slice(0, visibleDeadlineCount).map((c) => (
             <div className="timeline-item" key={c.id}>
               <strong>{c.name}</strong> {deadlineBadge(c.deadline)}
               <p className="muted">{c.deadline} / {c.nextAction || "次の行動を設定してください"}</p>
               <select
+                id={statusControlId(c.id)}
                 className="select"
                 style={{ maxWidth: 200, padding: 8 }}
                 value={c.status}

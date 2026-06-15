@@ -15,7 +15,7 @@ export function simplePythonLikeJudge(code: string, tests: TestCase[]): JudgeRes
 }
 
 function simulateVerySmallSubset(code: string, input: string): string {
-  const printLiteral = code.match(/print\((["'`])(.+?)\1\)/s);
+  const printLiteral = code.match(/print\((["'`])([\s\S]+?)\1\)/);
   if (printLiteral) return printLiteral[2];
 
   if (code.includes("Counter") && code.includes("sorted")) return mostFrequentChar(input);

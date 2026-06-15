@@ -44,6 +44,7 @@ pre { overflow-x: auto; background: #020617; padding: 12px; border-radius: 12px;
 .voice-meter { height: 18px; background: #020617; border: 1px solid #334155; border-radius: 999px; overflow: hidden; }
 .voice-meter-bar { height: 100%; background: #38bdf8; transition: width .2s; }
 .warning-box { padding: 14px; border: 1px solid #f59e0b; background: #422006; color: #fde68a; border-radius: 12px; margin: 12px 0; }
+.warning-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .success-box { padding: 14px; border: 1px solid #22c55e; background: #052e16; color: #bbf7d0; border-radius: 12px; margin: 12px 0; }
 
 .cloud-status { padding: 12px; border: 1px solid #334155; background: #020617; border-radius: 12px; margin-top: 12px; }
