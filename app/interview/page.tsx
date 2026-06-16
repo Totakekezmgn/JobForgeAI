@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { saveEvaluation } from "@/lib/evaluationStore";
 
 type Evaluation = {
   scores?: Record<string, number>;
@@ -24,6 +25,7 @@ export default function InterviewPage() {
   const [prep, setPrep] = useState("");
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [error, setError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
   const [loadingPrep, setLoadingPrep] = useState(false);
   const [loadingEval, setLoadingEval] = useState(false);
 
@@ -55,6 +57,7 @@ export default function InterviewPage() {
     }
     setLoadingEval(true);
     setError("");
+    setSaveMessage("");
     try {
       const res = await authFetch("/api/interview-evaluate", {
         method: "POST",
@@ -71,7 +74,10 @@ export default function InterviewPage() {
         setError(data.error || "ログインが必要です。/login からログインしてください。");
         return;
       }
-      setEvaluation(data.evaluation ?? null);
+      const nextEvaluation = data.evaluation ?? null;
+      setEvaluation(nextEvaluation);
+      const saved = saveEvaluation({ company, role, question, evaluation: nextEvaluation, source: "text" });
+      if (saved) setSaveMessage("採点履歴に保存しました。");
     } finally {
       setLoadingEval(false);
     }
@@ -123,6 +129,7 @@ export default function InterviewPage() {
           {loadingEval ? "採点中..." : "独立AIで採点"}
         </button>
         {error && <p className="muted" style={{ color: "#e25555" }}>{error}</p>}
+        {saveMessage && <p className="muted">{saveMessage}</p>}
       </section>
 
       {evaluation && (

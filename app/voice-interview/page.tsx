@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { saveEvaluation } from "@/lib/evaluationStore";
 
 declare global {
   interface Window {
@@ -20,6 +21,7 @@ export default function VoiceInterviewPage() {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const recognitionRef = useRef<any>(null);
@@ -35,6 +37,7 @@ export default function VoiceInterviewPage() {
 
     setTranscript("");
     setFeedback("");
+    setSaveMessage("");
     setDuration(0);
     const start = Date.now();
     setStartedAt(start);
@@ -108,6 +111,7 @@ export default function VoiceInterviewPage() {
 
   async function analyze() {
     setLoading(true);
+    setSaveMessage("");
     const local = localVoiceScore();
     try {
       // 1) 話し方コーチング(生成系)
@@ -133,6 +137,8 @@ export default function VoiceInterviewPage() {
       if (evalRes.ok) {
         const evalData = await evalRes.json();
         const ev = evalData.evaluation;
+        const saved = saveEvaluation({ company, role, question, evaluation: ev, source: "voice" });
+        if (saved) setSaveMessage("採点履歴に保存しました。");
         if (ev && ev.scores) {
           const lines = Object.entries(ev.scores).map(([k, v]) => `${k}: ${v} / 5`).join("\n");
           combined += `\n\n【独立AIによる採点】\n${lines}\n合計: ${ev.total}(判定: ${ev.verdict})\n最弱ポイント: ${ev.weakest_point ?? "-"}\n次の深掘り質問: ${ev.probing_question ?? "-"}`;
@@ -162,6 +168,7 @@ export default function VoiceInterviewPage() {
         <textarea className="textarea small" value={question} onChange={(e) => setQuestion(e.target.value)} />
         <button className="button" onClick={isRecording ? stopRecording : startRecording}>{isRecording ? "録音停止" : "音声入力開始"}</button>
         <button className="button secondary" onClick={analyze} disabled={!transcript || loading}>{loading ? "分析中..." : "面接回答を分析"}</button>
+        {saveMessage && <p className="muted">{saveMessage}</p>}
         <div style={{ marginTop: 16 }}>
           <p className="muted">音量レベル: {volume}</p>
           <div className="voice-meter"><div className="voice-meter-bar" style={{ width: `${volume}%` }} /></div>

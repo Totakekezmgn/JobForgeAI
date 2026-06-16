@@ -21,7 +21,7 @@
 - 該当なしの時は何も表示されない
 - 既存UIを壊さない / npm run build が通る
 
-### P0-002: 面接採点履歴の保存 — TODO
+### P0-002: 面接採点履歴の保存 — DONE
 目的: /api/interview-evaluate の採点結果を蓄積し、P0-003(弱点可視化)の材料にする。
 対象: app/interview/page.tsx、app/voice-interview/page.tsx、(新規)lib/evaluationStore.ts。
 実装方針:
