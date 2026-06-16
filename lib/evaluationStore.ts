@@ -21,6 +21,7 @@ type EvaluationResult = {
 };
 
 const STORAGE_KEY = "jobforge-evaluations";
+const MAX_EVALUATION_HISTORY = 100;
 
 export function loadEvaluations(): StoredEvaluation[] {
   if (typeof window === "undefined") return [];
@@ -55,7 +56,8 @@ export function saveEvaluation(input: {
     source: input.source
   };
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify([item, ...loadEvaluations()]));
+  const next = [item, ...loadEvaluations()].slice(0, MAX_EVALUATION_HISTORY);
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return item;
 }
 

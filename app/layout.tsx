@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/interview">面接対策</Link>
             <Link href="/voice-interview">音声面接</Link>
             <Link href="/interview-logs">面接ログ</Link>
+            <Link href="/growth">弱点分析</Link>
             <Link href="/research">企業研究</Link>
             <Link href="/live-research">自動リサーチ</Link>
             <Link href="/company">企業別Code対策</Link>

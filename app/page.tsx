@@ -138,6 +138,7 @@ export default function Home() {
           <div className="price">{esCount + logCount}</div>
           <p className="muted">ES {esCount}件 / 面接ログ {logCount}件</p>
           <Link className="button" href="/interview">面接練習</Link>
+          <Link className="button secondary" href="/growth">弱点分析</Link>
         </div>
       </section>
 
@@ -178,7 +179,7 @@ export default function Home() {
           <p><Link href="/companies">企業管理</Link> / <Link href="/import-company">企業追加AI</Link></p>
           <p><Link href="/es">ES管理</Link> / <Link href="/calendar">締切・予定管理</Link> / <Link href="/tasks">タスク管理</Link></p>
           <p><Link href="/research">AI企業研究</Link> / <Link href="/live-research">自動リサーチ</Link></p>
-          <p><Link href="/interview">AI面接シミュレーター</Link> / <Link href="/voice-interview">音声面接練習</Link> / <Link href="/interview-logs">面接ログ</Link></p>
+          <p><Link href="/interview">AI面接シミュレーター</Link> / <Link href="/voice-interview">音声面接練習</Link> / <Link href="/interview-logs">面接ログ</Link> / <Link href="/growth">弱点分析</Link></p>
           <p><Link href="/company">企業別Code対策</Link> / <Link href="/roadmap">Code学習ロードマップ</Link></p>
           <p><Link href="/data">データ管理</Link> / <Link href="/cloud">クラウド同期</Link> / <Link href="/calendar-export">カレンダー出力</Link></p>
         </div>
