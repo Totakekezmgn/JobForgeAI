@@ -2,19 +2,30 @@
 
 import { useEffect, useState } from "react";
 
+const DATA_KEYS = [
+  { key: "jobforge-companies", label: "企業" },
+  { key: "jobforge-es-documents", label: "ES" },
+  { key: "jobforge-interview-logs", label: "面接ログ" },
+  { key: "jobforge-evaluations", label: "採点履歴" }
+];
+
 export default function DataPage() {
-  const [companies, setCompanies] = useState<any[]>([]);
+  const [storedData, setStoredData] = useState<Record<string, any[]>>({});
   const [message, setMessage] = useState("");
 
   useEffect(() => { load(); }, []);
 
   function load() {
-    const saved = window.localStorage.getItem("jobforge-companies");
-    setCompanies(saved ? JSON.parse(saved) : []);
+    setStoredData(readAllData());
   }
 
   function exportData() {
-    const payload = { exportedAt: new Date().toISOString(), app: "JobForge AI", version: "2.1", companies };
+    const payload = {
+      app: "JobForge AI",
+      version: "3.0",
+      exportedAt: new Date().toISOString(),
+      ...readAllData()
+    };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -32,49 +43,61 @@ export default function DataPage() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        const importedCompanies = Array.isArray(parsed) ? parsed : parsed.companies;
-        if (!Array.isArray(importedCompanies)) {
-          setMessage("読み込みに失敗しました。companies配列が見つかりません。");
+        const imported = extractBackupData(parsed);
+        if (Object.keys(imported).length === 0) {
+          setMessage("読み込みに失敗しました。復元できるデータが見つかりません。");
           return;
         }
-        window.localStorage.setItem("jobforge-companies", JSON.stringify(importedCompanies));
-        setCompanies(importedCompanies);
-        setMessage("バックアップを復元しました。");
+        for (const item of DATA_KEYS) {
+          if (Array.isArray(imported[item.key])) {
+            window.localStorage.setItem(item.key, JSON.stringify(imported[item.key]));
+          }
+        }
+        load();
+        setMessage(`バックアップを復元しました。${summaryText(readAllData())}`);
       } catch {
         setMessage("JSONの読み込みに失敗しました。");
+      } finally {
+        e.target.value = "";
       }
     };
     reader.readAsText(file);
   }
 
   function clearData() {
-    if (!confirm("企業管理データを削除しますか？")) return;
-    window.localStorage.removeItem("jobforge-companies");
-    setCompanies([]);
-    setMessage("企業管理データを削除しました。");
+    if (!confirm("JobForge AIのローカル保存データ4種類をすべて削除しますか？")) return;
+    if (!confirm("この操作は元に戻せません。バックアップ済みでなければキャンセルしてください。")) return;
+    for (const item of DATA_KEYS) window.localStorage.removeItem(item.key);
+    setStoredData(readAllData());
+    setMessage("ローカル保存データをすべて削除しました。");
   }
+
+  const companies = storedData["jobforge-companies"] || [];
+  const hasAnyData = DATA_KEYS.some((item) => (storedData[item.key] || []).length > 0);
 
   return (
     <main className="container">
       <section className="hero">
         <h1>データ管理</h1>
-        <p>登録した企業情報をバックアップ・復元します。</p>
+        <p>企業・ES・面接ログ・採点履歴をまとめてバックアップ・復元します。</p>
       </section>
 
       <section className="warning-box">
-        現在のv2.1はブラウザ保存です。別PC・別ブラウザ・キャッシュ削除では情報が消える可能性があります。
+        現在のv3.0は主要データをブラウザに保存します。別PC・別ブラウザ・キャッシュ削除では情報が消える可能性があります。
         本格運用ではSupabaseなどのクラウドDB保存が必要です。
       </section>
 
       <section className="card">
         <h2>保存状態</h2>
-        <p>登録企業数: <strong>{companies.length}</strong></p>
-        <button className="button" onClick={exportData} disabled={companies.length === 0}>JSONでバックアップ</button>
+        {DATA_KEYS.map((item) => (
+          <p key={item.key}>{item.label}: <strong>{(storedData[item.key] || []).length}</strong>件</p>
+        ))}
+        <button className="button" onClick={exportData} disabled={!hasAnyData}>JSONでバックアップ</button>
 
         <label className="label">バックアップを復元</label>
         <input className="input" type="file" accept="application/json" onChange={importData} />
 
-        <button className="button secondary" onClick={clearData}>企業データを削除</button>
+        <button className="button secondary" onClick={clearData} disabled={!hasAnyData}>全データを削除</button>
         {message && <p className="success-box">{message}</p>}
       </section>
 
@@ -91,4 +114,45 @@ export default function DataPage() {
       </section>
     </main>
   );
+}
+
+function readAllData() {
+  const data: Record<string, any[]> = {};
+  for (const item of DATA_KEYS) {
+    data[item.key] = readArray(item.key);
+  }
+  return data;
+}
+
+function readArray(key: string) {
+  try {
+    const saved = window.localStorage.getItem(key);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function extractBackupData(parsed: any) {
+  const imported: Record<string, any[]> = {};
+
+  if (Array.isArray(parsed)) {
+    imported["jobforge-companies"] = parsed;
+    return imported;
+  }
+
+  if (Array.isArray(parsed?.companies)) {
+    imported["jobforge-companies"] = parsed.companies;
+  }
+
+  for (const item of DATA_KEYS) {
+    if (Array.isArray(parsed?.[item.key])) imported[item.key] = parsed[item.key];
+  }
+
+  return imported;
+}
+
+function summaryText(data: Record<string, any[]>) {
+  return DATA_KEYS.map((item) => `${item.label}${(data[item.key] || []).length}件`).join(" / ");
 }

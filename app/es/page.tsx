@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
 
 const types = ["志望動機", "自己PR", "ガクチカ", "逆質問", "その他"];
@@ -15,6 +15,7 @@ export default function ESPage() {
   const [content, setContent] = useState("");
   const [review, setReview] = useState("");
   const [message, setMessage] = useState("");
+  const [previewDocument, setPreviewDocument] = useState<any | null>(null);
   const [loadingReview, setLoadingReview] = useState(false);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function ESPage() {
   }
 
   async function saveDocument() {
+    const versionNumber = getVersionCount(documents, companyName, documentType) + 1;
     const item = {
       id: crypto.randomUUID(),
       companyName,
@@ -60,10 +62,10 @@ export default function ESPage() {
 
     if (!data.ok) {
       saveLocal([item, ...documents]);
-      setMessage(res.status === 401 ? "ログインが必要です。/login からログインしてください。未ログインの間はローカル保存で動作します。" : "Supabase未設定のため、ESをローカル保存しました。");
+      setMessage(res.status === 401 ? `ログインが必要です。/login からログインしてください。未ログインの間はローカル保存で動作します。v${versionNumber}として保存しました。` : `Supabase未設定のため、ESをローカル保存しました。v${versionNumber}として保存しました。`);
     } else {
       setDocuments([data.document, ...documents]);
-      setMessage("ESをクラウド保存しました。");
+      setMessage(`ESをクラウド保存しました。v${versionNumber}として保存しました。`);
     }
   }
 
@@ -90,9 +92,20 @@ export default function ESPage() {
     setReview(doc.ai_review || doc.aiReview || "");
   }
 
+  function previewVersion(doc: any) {
+    setPreviewDocument(doc);
+  }
+
+  function restoreVersion(doc: any, versionLabel: string) {
+    loadDocument(doc);
+    setPreviewDocument(doc);
+    setMessage(`${versionLabel}を編集欄に復元しました。保存すると新しい版として追加されます。`);
+  }
+
   const count = content.length;
   const limitNum = Number(limit || 0);
   const over = limitNum > 0 && count > limitNum;
+  const documentGroups = useMemo(() => groupDocuments(documents), [documents]);
 
   return (
     <main className="container">
@@ -160,16 +173,111 @@ export default function ESPage() {
       <section className="card" style={{ marginTop: 18 }}>
         <h2>保存済みES</h2>
         {documents.length === 0 && <p className="muted">まだ保存されたESはありません。</p>}
-        {documents.map((doc) => (
-          <div className="log-box" key={doc.id}>
-            <span className="badge">{doc.document_type || doc.documentType}</span>
-            <strong>{doc.company_name || doc.companyName || "企業未設定"}</strong>
-            <p className="muted">{doc.title}</p>
-            <div className="result">{String(doc.content || "").slice(0, 180)}...</div>
-            <button className="button secondary" onClick={() => loadDocument(doc)}>編集欄に読み込む</button>
+        {documentGroups.map((group) => (
+          <div className="log-box" key={group.key}>
+            <span className="badge">{group.documentType}</span>
+            <strong>{group.companyName}</strong>
+            <p className="muted">{group.versions.length}版 / 最新: {formatDate(group.latestAt)}</p>
+            {group.versions.map((version) => (
+              <div className="test-row" key={version.doc.id || `${group.key}-${version.version}`}>
+                <span className="badge">v{version.version}</span>
+                <strong>{version.title || `${group.companyName}_${group.documentType}`}</strong>
+                <p className="muted">{formatDate(version.createdAt)}</p>
+                <div className="result">{String(version.content || "").slice(0, 180)}...</div>
+                <button className="button secondary" onClick={() => previewVersion(version.doc)}>閲覧</button>
+                <button className="button" onClick={() => restoreVersion(version.doc, `v${version.version}`)}>この版を復元</button>
+              </div>
+            ))}
           </div>
         ))}
       </section>
+
+      {previewDocument && (
+        <section className="card" style={{ marginTop: 18 }}>
+          <h2>版の閲覧</h2>
+          <span className="badge">{getDocumentType(previewDocument)}</span>
+          <strong>{getCompanyName(previewDocument)}</strong>
+          <p className="muted">{getTitle(previewDocument)} / {formatDate(getCreatedAt(previewDocument))}</p>
+          <div className="result">{getContent(previewDocument)}</div>
+          {(previewDocument.ai_review || previewDocument.aiReview) && (
+            <>
+              <h2>この版のAI添削</h2>
+              <div className="result">{previewDocument.ai_review || previewDocument.aiReview}</div>
+            </>
+          )}
+        </section>
+      )}
     </main>
   );
+}
+
+function groupDocuments(documents: any[]) {
+  const map = new Map<string, { key: string; companyName: string; documentType: string; latestAt: string; docs: any[] }>();
+  for (const doc of documents) {
+    const companyName = getCompanyName(doc);
+    const documentType = getDocumentType(doc);
+    const key = `${companyName}__${documentType}`;
+    const createdAt = getCreatedAt(doc);
+    const group = map.get(key);
+    if (!group) {
+      map.set(key, { key, companyName, documentType, latestAt: createdAt, docs: [doc] });
+      continue;
+    }
+    group.docs.push(doc);
+    if (Date.parse(createdAt) > Date.parse(group.latestAt)) group.latestAt = createdAt;
+  }
+
+  return Array.from(map.values())
+    .map((group) => {
+      const oldestFirst = [...group.docs].sort((a, b) => Date.parse(getCreatedAt(a)) - Date.parse(getCreatedAt(b)));
+      return {
+        ...group,
+        versions: oldestFirst.map((doc, index) => ({
+          doc,
+          version: index + 1,
+          title: getTitle(doc),
+          content: getContent(doc),
+          createdAt: getCreatedAt(doc)
+        })).reverse()
+      };
+    })
+    .sort((a, b) => Date.parse(b.latestAt) - Date.parse(a.latestAt));
+}
+
+function getVersionCount(documents: any[], companyName: string, documentType: string) {
+  return documents.filter((doc) => getCompanyName(doc) === normalizeCompanyName(companyName) && getDocumentType(doc) === normalizeDocumentType(documentType)).length;
+}
+
+function getCompanyName(doc: any) {
+  return normalizeCompanyName(doc.company_name || doc.companyName || "");
+}
+
+function getDocumentType(doc: any) {
+  return normalizeDocumentType(doc.document_type || doc.documentType || "");
+}
+
+function getTitle(doc: any) {
+  return doc.title || "";
+}
+
+function getContent(doc: any) {
+  return String(doc.content || "");
+}
+
+function getCreatedAt(doc: any) {
+  return doc.created_at || doc.createdAt || doc.updated_at || doc.updatedAt || "";
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "日付未設定";
+  return date.toLocaleDateString("ja-JP");
+}
+
+function normalizeCompanyName(value: string) {
+  return value.trim() || "企業未設定";
+}
+
+function normalizeDocumentType(value: string) {
+  return value.trim() || "その他";
 }
