@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 export async function POST(request: Request) {
   const { companies } = await request.json();
+
+  if (!Array.isArray(companies)) {
+    return NextResponse.json({ advice: "", error: "企業データの形式が不正です。" }, { status: 400 });
+  }
+
+  const invalid = validateText(JSON.stringify(companies ?? []), { max: LIMITS.longText, label: "企業データ" });
+  if (invalid) return NextResponse.json({ advice: "", error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ advice: "", error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "suggest-next-actions");
+    if (!usage.allowed) return NextResponse.json({ advice: "", error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ advice: fallback(companies || []) });

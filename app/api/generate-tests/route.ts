@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { fallbackTests } from "@/lib/fallback";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 export async function POST(request: Request) {
   const { problem } = await request.json();
+
+  const invalid = validateText(problem, { required: true, max: LIMITS.longText, label: "問題" });
+  if (invalid) return NextResponse.json({ tests: [], error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ tests: [], error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "generate-tests");
+    if (!usage.allowed) return NextResponse.json({ tests: [], error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ tests: fallbackTests, source: "fallback" });

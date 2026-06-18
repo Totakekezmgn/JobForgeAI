@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 type HistoryItem = {
   level: string;
@@ -12,6 +14,20 @@ const categoryOrder = ["文字列", "配列", "辞書", "全探索", "ソート"
 
 export async function POST(request: Request) {
   const { history } = await request.json() as { history: HistoryItem[] };
+
+  if (!Array.isArray(history)) {
+    return NextResponse.json({ summary: [], recommended: [], roadmap: "", error: "学習履歴の形式が不正です。" }, { status: 400 });
+  }
+
+  const invalid = validateText(JSON.stringify(history ?? []), { max: LIMITS.longText, label: "学習履歴" });
+  if (invalid) return NextResponse.json({ summary: [], recommended: [], roadmap: "", error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ summary: [], recommended: [], roadmap: "", error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "analyze-weakness");
+    if (!usage.allowed) return NextResponse.json({ summary: [], recommended: [], roadmap: "", error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
 
   const summary = categoryOrder.map((category) => {
     const items = history.filter((item) => item.category === category);

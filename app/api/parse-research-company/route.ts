@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 export async function POST(request: Request) {
   const { researchText, companyHint } = await request.json();
+
+  const invalid =
+    validateText(researchText, { required: true, max: LIMITS.longText, label: "リサーチ本文" }) ||
+    validateText(companyHint, { max: LIMITS.shortText, label: "企業名ヒント" });
+  if (invalid) return NextResponse.json({ company: null, error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ company: null, error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "parse-research-company");
+    if (!usage.allowed) return NextResponse.json({ company: null, error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({

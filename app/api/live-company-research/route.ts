@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 export async function POST(request: Request) {
   const { company, target } = await request.json();
+  const invalid =
+    validateText(company, { required: true, max: LIMITS.shortText, label: "企業名" }) ||
+    validateText(target, { max: LIMITS.shortText, label: "調査対象" });
+  if (invalid) return NextResponse.json({ result: "", error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ result: "", error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "live-company-research");
+    if (!usage.allowed) return NextResponse.json({ result: "", error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
+
   const tavilyKey = process.env.TAVILY_API_KEY;
   let searchContext = "";
 

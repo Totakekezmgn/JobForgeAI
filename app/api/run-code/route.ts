@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
 import { simplePythonLikeJudge, TestCase } from "@/lib/simpleJudge";
+import { getVerifiedUser, checkAndCountUsage } from "@/lib/serverAuth";
+import { validateText, LIMITS } from "@/lib/validate";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const { code, tests } = await request.json() as { code: string; tests: TestCase[] };
+
+  if (!Array.isArray(tests)) {
+    return NextResponse.json({ ok: false, results: [], error: "テストケースの形式が不正です。" }, { status: 400 });
+  }
+
+  const invalid =
+    validateText(code, { required: true, max: LIMITS.longText, label: "コード" }) ||
+    validateText(JSON.stringify(tests ?? []), { required: true, max: LIMITS.longText, label: "テストケース" });
+  if (invalid) return NextResponse.json({ ok: false, results: [], error: invalid }, { status: 400 });
+
+  const user = await getVerifiedUser(request);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!user) return NextResponse.json({ ok: false, results: [], error: "login_required" }, { status: 401 });
+    const usage = await checkAndCountUsage(user.id, "run-code");
+    if (!usage.allowed) return NextResponse.json({ ok: false, results: [], error: `本日の無料枠(${usage.limit}回)を使い切りました。` }, { status: 429 });
+  }
 
   const mode = process.env.CODE_RUNNER_MODE || "simple";
 

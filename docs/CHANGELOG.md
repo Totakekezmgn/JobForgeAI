@@ -1,6 +1,7 @@
 # CHANGELOG.md — 変更履歴
 
 ## Unreleased — 設計ドキュメント改訂(2026-06-17)
+- P1-002: app/api配下のroute.tsを外部サービス別に棚卸しし、未ゲートのOpenAI/Tavily/Piston系ルートへ認証・入力検証・利用枠消費を追加
 - P1-001: AI/外部API機能の実行前に OpenAI / Tavily / Piston 等への外部送信同意を共通表示し、dataページに同意リセットを追加
 - Pro「無制限」方針を廃止し、月次クレジット付与または都度クレジット購入へ変更
 - `live-company-research` を高コスト機能として分離し、無料回数制限・重いクレジット消費・キャッシュ必須へ変更

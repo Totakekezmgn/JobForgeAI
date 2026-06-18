@@ -95,7 +95,7 @@
 - 同意リセット後は再表示される
 - npm run build が通る
 
-### P1-002: 全AI/外部APIルートのゲート統一 — TODO
+### P1-002: 全AI/外部APIルートのゲート統一 — DONE
 目的: 未ゲートAPIによるAPIコスト暴走を防ぐ。旧P2-003をP1へ前倒しする。
 対象: /api/run-code、/api/generate-problem、/api/company-research、/api/live-company-research、/api/parse-research-company、/api/suggest-next-actions、/api/analyze-weakness、/api/schedule-advice、/api/company-prep、および既存AI系全ルート。
 実装方針:
