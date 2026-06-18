@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 import { authFetch } from "@/lib/authFetch";
 
 type CompanyDraft = {
@@ -18,6 +19,7 @@ export default function ImportCompanyPage() {
   const [draft, setDraft] = useState<CompanyDraft | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   useEffect(() => {
     const saved = window.localStorage.getItem("jobforge-last-research");
@@ -81,6 +83,8 @@ export default function ImportCompanyPage() {
         <h1>企業追加AI</h1>
         <p>自動リサーチ結果や採用情報メモから、企業管理に登録する情報を抽出します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="warning-box">
         締切日はAIが誤る可能性があります。保存前に必ず公式採用サイト・マイページで確認してください。
@@ -100,7 +104,7 @@ export default function ImportCompanyPage() {
           placeholder="自動企業リサーチ結果、採用ページのメモ、説明会メモなどを貼り付け"
         />
 
-        <button className="button" onClick={parseResearch} disabled={!researchText || loading}>
+        <button className="button" onClick={() => runWithConsent(parseResearch)} disabled={!researchText || loading}>
           {loading ? "抽出中..." : "企業データを抽出"}
         </button>
       </section>

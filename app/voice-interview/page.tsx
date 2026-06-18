@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 import { authFetch } from "@/lib/authFetch";
 import { saveEvaluation } from "@/lib/evaluationStore";
 
@@ -23,6 +24,7 @@ export default function VoiceInterviewPage() {
   const [feedback, setFeedback] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -157,6 +159,8 @@ export default function VoiceInterviewPage() {
         <h1>音声面接</h1>
         <p>声に出して回答し、文字起こし・話速・音量・回答内容を分析します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <h2>面接条件</h2>
@@ -167,7 +171,7 @@ export default function VoiceInterviewPage() {
         <label className="label">質問</label>
         <textarea className="textarea small" value={question} onChange={(e) => setQuestion(e.target.value)} />
         <button className="button" onClick={isRecording ? stopRecording : startRecording}>{isRecording ? "録音停止" : "音声入力開始"}</button>
-        <button className="button secondary" onClick={analyze} disabled={!transcript || loading}>{loading ? "分析中..." : "面接回答を分析"}</button>
+        <button className="button secondary" onClick={() => runWithConsent(analyze)} disabled={!transcript || loading}>{loading ? "分析中..." : "面接回答を分析"}</button>
         {saveMessage && <p className="muted">{saveMessage}</p>}
         <div style={{ marginTop: 16 }}>
           <p className="muted">音量レベル: {volume}</p>

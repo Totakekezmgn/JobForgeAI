@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { resetAiConsent } from "@/lib/consent";
 
 const DATA_KEYS = [
   { key: "jobforge-companies", label: "企業" },
@@ -72,6 +73,11 @@ export default function DataPage() {
     setMessage("ローカル保存データをすべて削除しました。");
   }
 
+  function resetConsent() {
+    resetAiConsent();
+    setMessage("AI外部送信同意をリセットしました。次回AI機能実行時に再度同意表示が出ます。");
+  }
+
   const companies = storedData["jobforge-companies"] || [];
   const hasAnyData = DATA_KEYS.some((item) => (storedData[item.key] || []).length > 0);
 
@@ -98,6 +104,7 @@ export default function DataPage() {
         <input className="input" type="file" accept="application/json" onChange={importData} />
 
         <button className="button secondary" onClick={clearData} disabled={!hasAnyData}>全データを削除</button>
+        <button className="button secondary" onClick={resetConsent}>AI外部送信同意をリセット</button>
         {message && <p className="success-box">{message}</p>}
       </section>
 

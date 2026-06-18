@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 import { authFetch } from "@/lib/authFetch";
 import { saveEvaluation } from "@/lib/evaluationStore";
 
@@ -28,6 +29,7 @@ export default function InterviewPage() {
   const [saveMessage, setSaveMessage] = useState("");
   const [loadingPrep, setLoadingPrep] = useState(false);
   const [loadingEval, setLoadingEval] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   // ステップ1: 想定質問の生成(生成専用ルート)
   async function generatePrep() {
@@ -55,32 +57,34 @@ export default function InterviewPage() {
       setError("評価には「質問」と「あなたの回答」の両方が必要です。");
       return;
     }
-    setLoadingEval(true);
-    setError("");
-    setSaveMessage("");
-    try {
-      const res = await authFetch("/api/interview-evaluate", {
-        method: "POST",
-        body: JSON.stringify({
-          company,
-          role,
-          question,
-          answer,
-          keywords: keywords.split(/[、,\s]+/).filter(Boolean)
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "ログインが必要です。/login からログインしてください。");
-        return;
+    await runWithConsent(async () => {
+      setLoadingEval(true);
+      setError("");
+      setSaveMessage("");
+      try {
+        const res = await authFetch("/api/interview-evaluate", {
+          method: "POST",
+          body: JSON.stringify({
+            company,
+            role,
+            question,
+            answer,
+            keywords: keywords.split(/[、,\s]+/).filter(Boolean)
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "ログインが必要です。/login からログインしてください。");
+          return;
+        }
+        const nextEvaluation = data.evaluation ?? null;
+        setEvaluation(nextEvaluation);
+        const saved = saveEvaluation({ company, role, question, evaluation: nextEvaluation, source: "text" });
+        if (saved) setSaveMessage("採点履歴に保存しました。");
+      } finally {
+        setLoadingEval(false);
       }
-      const nextEvaluation = data.evaluation ?? null;
-      setEvaluation(nextEvaluation);
-      const saved = saveEvaluation({ company, role, question, evaluation: nextEvaluation, source: "text" });
-      if (saved) setSaveMessage("採点履歴に保存しました。");
-    } finally {
-      setLoadingEval(false);
-    }
+    });
   }
 
   return (
@@ -89,6 +93,8 @@ export default function InterviewPage() {
         <h1>AI面接シミュレーター</h1>
         <p>ステップ1で想定質問を生成し、ステップ2で回答を独立した採点AIが評価します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <h2>ステップ1: 面接条件と想定質問</h2>
@@ -105,7 +111,7 @@ export default function InterviewPage() {
           <option>人事面接</option>
           <option>技術面接</option>
         </select>
-        <button className="button" onClick={generatePrep} disabled={loadingPrep}>
+        <button className="button" onClick={() => runWithConsent(generatePrep)} disabled={loadingPrep}>
           {loadingPrep ? "生成中..." : "想定質問を生成"}
         </button>
       </section>

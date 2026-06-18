@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 
 type Company = {
   id: string;
@@ -16,6 +17,7 @@ export default function CalendarPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [advice, setAdvice] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   useEffect(() => {
     const saved = window.localStorage.getItem("jobforge-companies");
@@ -56,11 +58,13 @@ export default function CalendarPage() {
         <h1>締切・予定管理</h1>
         <p>IS、ES、面接、コーディングテストの締切を時系列で管理します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <h2>AIスケジュール助言</h2>
         <p className="muted">登録企業の締切と次アクションから、優先順位を提案します。</p>
-        <button className="button" onClick={generateAdvice} disabled={loading}>
+        <button className="button" onClick={() => runWithConsent(generateAdvice)} disabled={loading}>
           {loading ? "分析中..." : "今日の優先順位を出す"}
         </button>
         {advice && <div className="result" style={{ marginTop: 16 }}>{advice}</div>}

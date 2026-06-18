@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 import { authFetch } from "@/lib/authFetch";
 
 const types = ["志望動機", "自己PR", "ガクチカ", "逆質問", "その他"];
@@ -17,6 +18,7 @@ export default function ESPage() {
   const [message, setMessage] = useState("");
   const [previewDocument, setPreviewDocument] = useState<any | null>(null);
   const [loadingReview, setLoadingReview] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   useEffect(() => {
     const savedCompanies = window.localStorage.getItem("jobforge-companies");
@@ -113,6 +115,8 @@ export default function ESPage() {
         <h1>ES管理</h1>
         <p>企業ごとの志望動機・自己PR・ガクチカ・逆質問を保存し、AIで改善します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="grid">
         <div className="card">
@@ -154,7 +158,7 @@ export default function ESPage() {
             {count} / {limit || "指定なし"}文字
           </div>
 
-          <button className="button" onClick={reviewES} disabled={!content || loadingReview}>
+          <button className="button" onClick={() => runWithConsent(reviewES)} disabled={!content || loadingReview}>
             {loadingReview ? "添削中..." : "AI添削"}
           </button>
           <button className="button secondary" onClick={saveDocument} disabled={!content}>

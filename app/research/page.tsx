@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 
 export default function ResearchPage() {
   const [company, setCompany] = useState("Visional");
   const [memo, setMemo] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   async function research() {
     setLoading(true);
@@ -30,6 +32,8 @@ export default function ResearchPage() {
         <h1>AI企業研究</h1>
         <p>企業名と自分のメモから、志望動機・面接対策に使える企業研究を整理します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <label className="label">企業名</label>
@@ -38,7 +42,7 @@ export default function ResearchPage() {
         <label className="label">説明会メモ・気になった点</label>
         <textarea className="textarea" value={memo} onChange={(e) => setMemo(e.target.value)} />
 
-        <button className="button" onClick={research} disabled={loading}>
+        <button className="button" onClick={() => runWithConsent(research)} disabled={loading}>
           {loading ? "分析中..." : "企業研究を生成"}
         </button>
       </section>

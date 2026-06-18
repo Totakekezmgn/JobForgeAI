@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 
 export default function CompanyPage() {
   const [company, setCompany] = useState("Visional");
@@ -9,6 +10,7 @@ export default function CompanyPage() {
   const [level, setLevel] = useState("初級");
   const [plan, setPlan] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   async function generatePlan() {
     setLoading(true);
@@ -35,6 +37,8 @@ export default function CompanyPage() {
         <h1>企業別コーディングテスト対策</h1>
         <p>企業名と職種から、対策カテゴリ・模擬問題・学習スケジュールを生成します。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <h2>対策条件</h2>
@@ -62,7 +66,7 @@ export default function CompanyPage() {
           <option>上級</option>
         </select>
 
-        <button className="button" onClick={generatePlan} disabled={loading}>
+        <button className="button" onClick={() => runWithConsent(generatePlan)} disabled={loading}>
           {loading ? "生成中..." : "企業別対策を生成"}
         </button>
       </section>

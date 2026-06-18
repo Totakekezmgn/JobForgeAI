@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
+import { useAiConsentDialog } from "@/components/AiConsentDialog";
 
 type LocalHistory = {
   id: string;
@@ -25,6 +26,7 @@ export default function RoadmapPage() {
   const [recommended, setRecommended] = useState<string[]>([]);
   const [roadmap, setRoadmap] = useState("");
   const [loading, setLoading] = useState(false);
+  const { consentDialog, consentMessage, runWithConsent } = useAiConsentDialog();
 
   useEffect(() => {
     const saved = window.localStorage.getItem("codeforge-history");
@@ -63,11 +65,13 @@ export default function RoadmapPage() {
         <h1>学習ロードマップ</h1>
         <p>学習履歴から苦手分野を推定し、次にやるべき練習を決めます。</p>
       </section>
+      {consentDialog}
+      {consentMessage && <p className="warning-box">{consentMessage}</p>}
 
       <section className="card">
         <h2>分析対象</h2>
         <p className="muted">ローカル履歴: {history.length}件</p>
-        <button className="button" onClick={analyze} disabled={loading}>
+        <button className="button" onClick={() => runWithConsent(analyze)} disabled={loading}>
           {loading ? "分析中..." : "苦手分野を分析"}
         </button>
       </section>

@@ -81,7 +81,7 @@
 
 ## P1 — v3.5 安全公開準備
 
-### P1-001: AI送信の事前同意表示 — TODO
+### P1-001: AI送信の事前同意表示 — DONE
 目的: ユーザーの入力が外部AI(OpenAI/Tavily/Piston等)へ送られることを明示する。
 対象: AI機能を持つ全ページ、(新規)lib/consent.ts、app/data/page.tsx。
 実装方針:
